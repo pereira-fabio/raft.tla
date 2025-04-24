@@ -110,6 +110,12 @@ VARIABLE nextIndex
 VARIABLE matchIndex
 leaderVars == <<nextIndex, matchIndex, elections>>
 
+VARIABLES
+    \* Standard Raft variables...
+    switchBuffer,     \* [server → [requestId → payload]]
+    metadataLog,      \* [server → Seq(requestId)]  \* Leader's ordering metadata
+    pendingRequests   \* [server → {requestId}]     \* Requests waiting for metadata
+
 \* End of per server variables.
 ----
 
@@ -125,6 +131,12 @@ Quorum == {i \in SUBSET(Server) : Cardinality(i) * 2 > Cardinality(Server)}
 
 \* The term of the last entry in a log, or 0 if the log is empty.
 LastTerm(xlog) == IF Len(xlog) = 0 THEN 0 ELSE xlog[Len(xlog)].term
+
+ReceiveViaSwitch(i, request) ==
+    /\ request.payload \notin DOMAIN switchBuffer[i]
+    /\ switchBuffer' = [switchBuffer EXCEPT ![i] = @ \union {request.id : request.payload}]
+    /\ pendingRequests' = [pendingRequests EXCEPT ![i] = @ \union {request.id}]
+    /\ UNCHANGED <<metadataLog, otherRaftVars>>
 
 \* Helper for Send and Reply. Given a message m and bag of messages, return a
 \* new bag of messages with one more m in it.
@@ -312,24 +324,39 @@ BecomeLeader(i) ==
 ValidMessage(msgs) ==
     { m \in DOMAIN messages : msgs[m] > 0 }
     
-ClientRequest(i, v) ==
+ClientRequest(i, requestId) ==  \* Leader only sends meta data 
     /\ state[i] = Leader
-    /\ maxc < MaxClientRequests 
-    /\ LET entryTerm == currentTerm[i]
-           entry == [term |-> entryTerm, value |-> v]
-           entryExists == \E j \in DOMAIN log[i] : log[i][j].value = v /\ log[i][j].term = entryTerm
-           newLog == IF entryExists THEN log[i] ELSE Append(log[i], entry)
-           newEntryIndex == Len(log[i]) + 1
-           newEntryKey == <<newEntryIndex, entryTerm>>
-       IN
-        /\ log' = [log EXCEPT ![i] = newLog]
-        /\ maxc' = IF entryExists THEN maxc ELSE maxc + 1
-        /\ entryCommitStats' =
-              IF ~entryExists /\ newEntryIndex > 0 \* Only add stats for truly new entries
-              THEN entryCommitStats @@ (newEntryKey :> [ sentCount |-> 0, ackCount |-> 0, committed |-> FALSE ])
-              ELSE entryCommitStats
-    /\ UNCHANGED <<messages, serverVars, candidateVars,
-                   leaderVars, commitIndex, leaderCount>>
+    /\ requestId \in pendingRequests[i]
+    /\ metadataLog' = [metadataLog EXCEPT ![i] = Append(@, requestId)]
+    /\ Send([mtype |-> Metadata, mterm |-> currentTerm[i], mrequestId |-> requestId, ...])
+    /\ UNCHANGED <<switchBuffer, pendingRequests>>
+
+
+HandleMetadata(i, metadata) ==
+    /\ metadata.mrequestId \in pendingRequests[i]
+    /\ LET entry == [term |-> currentTerm[i], value |-> switchBuffer[i][metadata.mrequestId]]
+       IN log' = [log EXCEPT ![i] = Append(@, entry)]
+    /\ pendingRequests' = [pendingRequests EXCEPT ![i] = @ \ {metadata.mrequestId}]
+    /\ UNCHANGED <<switchBuffer, metadataLog>>
+                
+\* ClientRequest(i, v) ==
+\*     /\ state[i] = Leader
+\*     /\ maxc < MaxClientRequests 
+\*     /\ LET entryTerm == currentTerm[i]
+\*            entry == [term |-> entryTerm, value |-> v]
+\*           entryExists == \E j \in DOMAIN log[i] : log[i][j].value = v /\ log[i][j].term = entryTerm
+\*            newLog == IF entryExists THEN log[i] ELSE Append(log[i], entry)
+\*            newEntryIndex == Len(log[i]) + 1
+\*            newEntryKey == <<newEntryIndex, entryTerm>>
+\*        IN
+\*         /\ log' = [log EXCEPT ![i] = newLog]
+\*         /\ maxc' = IF entryExists THEN maxc ELSE maxc + 1
+\*         /\ entryCommitStats' =
+\*               IF ~entryExists /\ newEntryIndex > 0 \* Only add stats for truly new entries
+\*               THEN entryCommitStats @@ (newEntryKey :> [ sentCount |-> 0, ackCount |-> 0, committed |-> FALSE ])
+\*               ELSE entryCommitStats
+\*     /\ UNCHANGED <<messages, serverVars, candidateVars,
+\*                    leaderVars, commitIndex, leaderCount>>
 
 \* Leader i advances its commitIndex.
 \* This is done as a separate step from handling AppendEntries responses,
