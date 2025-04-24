@@ -48,6 +48,10 @@ MyInit ==
     /\ entryCommitStats = [ idx_term \in {} |-> [ sentCount |-> 0, ackCount |-> 0, committed |-> FALSE ] ] \* Initialize here too
 
 \* to be used directly in model Init the value
+
+switchBuffer = [s \in Server |-> {}],
+metadataLog = [s \in Server |-> <<>>],
+pendingRequests = [s \in Server |-> {}]
 \*MyInit2 ==
 \*    /\  commitIndex = (r1 :> 0 @@ r2 :> 0 @@ r3 :> 0)
 \*    /\  currentTerm = (r1 :> 2 @@ r2 :> 2 @@ r3 :> 2)

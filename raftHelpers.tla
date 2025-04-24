@@ -73,6 +73,13 @@ MyConstraint == (\A i \in Server: currentTerm[i] <= MaxTerm /\ Len(log[i]) <= Ma
 
 Symmetry == Permutations(Server)
 
+CanEvictPayload(i, reqId) ==
+    reqId \in DOMAIN switchBuffer[i] 
+    /\ \A j \in Server :
+        reqId \notin pendingRequests[j]
+    /\ \A entry \in \Union {log[j] : j \in Server} :
+        entry.value /= switchBuffer[i][reqId]
+
 \* new bag of messages with one more m in it. the following from orig spec necessary for Drop
 \*WithMessage(m, msgs) ==
 \*    IF m \in DOMAIN msgs THEN
