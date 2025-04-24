@@ -752,6 +752,18 @@ MyConstraint == (\A i \in Server: currentTerm[i] <= MaxTerm /\ Len(log[i]) <= Ma
 LeaderCommitted ==
     \E i \in Server : state[i] = Leader => commitIndex[i] < 2
 
+PayloadMetadataAgreement ==
+    \A i \in Server :
+        \A entry \in log[i] :
+            entry.value \in DOMAIN switchBuffer[i]
+
+
+SwitchDelivery ==
+    \A i,j \in Server :
+        \A reqId \in DOMAIN switchBuffer[i] :
+            reqId \in DOMAIN switchBuffer[j]
+
+
 Symmetry == Permutations(Server)
 ===============================================================================
 \* Modification History
