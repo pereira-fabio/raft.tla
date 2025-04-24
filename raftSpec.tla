@@ -58,7 +58,6 @@ MyNext ==
 \*           \/ \E m \in {msg \in ValidMessage(messages) : 
 \*                    msg.mtype \in {RequestVoteRequest}} : DropMessage(m)
 
-
 \* The specification must start with the initial state and transition according
 \* to Next.
 Spec == Init /\ [][Next]_vars
