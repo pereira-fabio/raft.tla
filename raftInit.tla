@@ -31,21 +31,59 @@ MyInit ==
         r1 == ServerIds[1]
         r2 == ServerIds[2]
         r3 == ServerIds[3]
+        r4 == ServerIds[4]
     IN
-    /\ commitIndex = [s \in Server |-> 0]
-    /\ currentTerm = [s \in Server |-> 2]
-    /\ leaderCount = [s \in Server |-> IF s = r2 THEN 1 ELSE 0]
-    /\ log = [s \in Server |-> <<>>]
-    /\ matchIndex = [s \in Server |-> [t \in Server |-> 0]]
-    /\ maxc = 0
-    /\ messages = [m \in {} |-> 0]  \* Start with empty messages
-    /\ nextIndex = [s \in Server |-> [t \in Server |-> 1]]
-    /\ state = [s \in Server |-> IF s = r2 THEN Leader ELSE Follower]
-    /\ votedFor = [s \in Server |-> IF s = r2 THEN Nil ELSE r2]
-    /\ voterLog = [s \in Server |-> IF s = r2 THEN (r1 :> <<>> @@ r3 :> <<>>) ELSE <<>>]
-    /\ votesGranted = [s \in Server |-> IF s = r2 THEN {r1, r3} ELSE {}]
-    /\ votesResponded = [s \in Server |-> IF s = r2 THEN {r1, r3} ELSE {}]
-    /\ entryCommitStats = [ idx_term \in {} |-> [ sentCount |-> 0, ackCount |-> 0, committed |-> FALSE ] ] \* Initialize here too
+    \*/\ commitIndex = [s \in Server |-> 0]
+    \*/\ currentTerm = [s \in Server |-> 2]
+    \*/\ leaderCount = [s \in Server |-> IF s = r2 THEN 1 ELSE 0]
+    \*/\ log = [s \in Server |-> <<>>]
+    \*/\ matchIndex = [s \in Server |-> [t \in Server |-> 0]]
+    \*/\ maxc = 0
+    \*/\ messages = [m \in {} |-> 0]  \* Start with empty messages
+    \*/\ nextIndex = [s \in Server |-> [t \in Server |-> 1]]
+    \*/\ state = [s \in Server |-> IF s = r2 THEN Leader ELSE IF s = r1 THEN Switch ELSE Follower]
+    \*/\ votedFor = [s \in Server |-> IF s = r2 THEN Nil ELSE r2]
+    \*/\ voterLog = [s \in Server |-> IF s = r2 THEN (r1 :> <<>> @@ r3 :> <<>>) ELSE <<>>]
+    \*/\ votesGranted = [s \in Server |-> IF s = r2 THEN {r1, r3} ELSE {}]
+    \*/\ votesResponded = [s \in Server |-> IF s = r2 THEN {r1, r3} ELSE {}]
+    \*/\ entryCommitStats = [ idx_term \in {} |-> [ sentCount |-> 0, ackCount |-> 0, committed |-> FALSE ] ] \* Initialize here too
+
+
+    /\  Servers = {"r2", "r3", "r4"}
+    /\  commitIndex = [r1 |-> 0, r2 |-> 0, r3 |-> 0, r4 |-> 0]
+    /\  currentTerm = [r1 |-> 2, r2 |-> 2, r3 |-> 2, r4 |-> 2]
+    /\  entryCommitStats = << >>
+    /\  leaderCount = [r1 |-> 0, r2 |-> 1, r3 |-> 0, r4 |-> 0]
+    /\  log = [r1 |-> <<>>, r2 |-> <<>>, r3 |-> <<>>, r4 |-> <<>>]
+    /\  matchIndex = [ r1 |-> [r1 |-> 0, r2 |-> 0, r3 |-> 0, r4 |-> 0],
+        r2 |-> [r1 |-> 0, r2 |-> 0, r3 |-> 0, r4 |-> 0],
+        r3 |-> [r1 |-> 0, r2 |-> 0, r3 |-> 0, r4 |-> 0],
+        r4 |-> [r1 |-> 0, r2 |-> 0, r3 |-> 0, r4 |-> 0] ]
+    /\  maxc = 0
+    /\  messages = << >>
+    /\  nextIndex = [ r1 |-> [r1 |-> 1, r2 |-> 1, r3 |-> 1, r4 |-> 1],
+        r2 |-> [r1 |-> 1, r2 |-> 1, r3 |-> 1, r4 |-> 1],
+        r3 |-> [r1 |-> 1, r2 |-> 1, r3 |-> 1, r4 |-> 1],
+        r4 |-> [r1 |-> 1, r2 |-> 1, r3 |-> 1, r4 |-> 1] ]
+    /\  state = [r1 |-> Switch, r2 |-> Leader, r3 |-> Follower, r4 |-> Follower]
+    /\  switchBuffer = [ v1 |-> [term |-> 2, value |-> "v1", payload |-> "v1"],
+        v2 |-> [term |-> 2, value |-> "v2", payload |-> "v2"] ]
+    /\  switchIndex = "r1"
+    /\  switchSentRecord = [ r1 |-> {},
+        r2 |-> {<<"v1", 2>>, <<"v2", 2>>},
+        r3 |-> {<<"v1", 2>>, <<"v2", 2>>},
+        r4 |-> {<<"v1", 2>>, <<"v2", 2>>} ]
+    /\  unorderedRequests = [ r1 |-> {"v1", "v2"},
+        r2 |-> {"v1", "v2"},
+        r3 |-> {"v1", "v2"},
+        r4 |-> {"v1", "v2"} ]
+    /\  votedFor = [r1 |-> "r2", r2 |-> Nil, r3 |-> "r2", r4 |-> "r2"]
+    /\  voterLog = [r1 |-> << >>, r2 |-> [r3 |-> <<>>, r4 |-> <<>>], r3 |-> << >>, r4 |-> << >>]
+    /\  votesGranted = [r1 |-> {}, r2 |-> {"r3", "r4"}, r3 |-> {}, r4 |-> {}]
+    /\  votesResponded = [r1 |-> {}, r2 |-> {"r3", "r4"}, r3 |-> {}, r4 |-> {}]
+
+
+
 
 InitPayloadBuf == payloadBuf = [ i \in Server |-> << >> ]
 

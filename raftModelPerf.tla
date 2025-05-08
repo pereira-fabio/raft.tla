@@ -68,6 +68,27 @@ CommittedPayloadInv ==
 THEOREM HoverSpec => ([]LogInv /\ []LeaderCompletenessInv /\ []LogMatchingInv /\ []MoreThanOneLeaderInv /\  []CommittedPayloadInv)
 
 \*Modify LeaderCommited == \E i \in Server : commitIndex[i] /= 1
+
+AllServersHaveOneUnorderedRequestInv ==
+    \E s \in Servers :  Cardinality(unorderedRequests[s]) /= 2
+
+
+MySwitchNext == 
+   \/ \E i \in Servers, v \in Value : 
+    state[i] = Leader /\ SwitchClientRequest(switchIndex, i, v)
+
+   \/ \E i \in Servers, v \in DOMAIN switchBuffer : 
+    SwitchClientRequestReplicate(switchIndex, i, v)
+
+   \/ \E i \in Servers, v \in DOMAIN switchBuffer : 
+    state[i] = Leader /\ LeaderIngestHovercRaftRequest(i, v)
+
+   \/ \E i \in Servers : AdvanceCommitIndex(i)
+
+   \/ \E i,j \in Servers : i /= j /\ AppendEntries(i, j)
+
+   \/ \E m \in {msg \in ValidMessage(messages) : msg.mtype \in 
+    {AppendEntriesRequest, AppendEntriesResponse}} : Receive(m)
 \*and run with MySpec OR
 
 \*Use the following modified Init with MyNext for finding an error trace with LeaderCommited == \E i \in Server : commitIndex[i] /= 2 violated
