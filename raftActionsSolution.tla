@@ -149,7 +149,9 @@ SwitchClientRequest(i, v) ==
     /\ maxc < MaxClientRequests 
     /\ LET entryTerm == currentTerm[i]
            entry == [term |-> entryTerm, value |-> v]
-           entryExists == \E j \in DOMAIN log[i] : log[i][j].value = v /\ log[i][j].term = entryTerm
+           entryExists == \E j \in DOMAIN log[i] : 
+                            /\ log[i][j].term = entryTerm 
+                            /\ log[i][j].value = v
            newLog == IF entryExists THEN log[i] ELSE Append(log[i], entry)
            newEntryIndex == Len(log[i]) + 1
            newEntryKey == <<newEntryIndex, entryTerm>>
@@ -157,8 +159,11 @@ SwitchClientRequest(i, v) ==
         /\ log' = [log EXCEPT ![i] = newLog]
         /\ maxc' = IF entryExists THEN maxc ELSE maxc + 1
         /\ entryCommitStats' =
-              IF ~entryExists /\ newEntryIndex > 0 \* Only add stats for truly new entries
-              THEN entryCommitStats @@ (newEntryKey :> [ sentCount |-> 0, ackCount |-> 0, committed |-> FALSE ])
+              IF ~entryExists 
+              THEN [x \in DOMAIN entryCommitStats |->
+                      IF x = newEntryKey 
+                      THEN [sentCount |-> 0, ackCount |-> 0, committed |-> FALSE]
+                      ELSE entryCommitStats[x]]
               ELSE entryCommitStats
     /\ UNCHANGED <<messages, serverVars, candidateVars, leaderVars, commitIndex, leaderCount>>
 
